@@ -1,14 +1,58 @@
 version: '3.8'
 
 services:
-  ratings:
+  # MongoDB Database
+  mongodb:
+    image: mongo:4.4
+    container_name: ratings-mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_DATABASE=ratings
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=password123
+    volumes:
+      - mongodb-data:/data/db
+      - ./databases/script.sh:/docker-entrypoint-initdb.d/script.sh
+    restart: unless-stopped
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongo localhost:27017/ratings --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Ratings Service - v1 (without database)
+  ratings-v1:
     build:
       context: .
       dockerfile: Dockerfile
     image: ratings:latest
-    container_name: ratings-service
+    container_name: ratings-service-v1
     ports:
       - "8080:8080"
     environment:
-      - SERVICE_VERSION=v1  # Run without database
+      - SERVICE_VERSION=v1
     restart: unless-stopped
+
+  # Ratings Service - v2 (with MongoDB)
+  ratings-v2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ratings:latest
+    container_name: ratings-service-v2
+    ports:
+      - "8081:8080"
+    environment:
+      - SERVICE_VERSION=v2
+      - MONGO_DB_URL=mongodb://admin:password123@mongodb:27017
+      - MONGO_DB_NAME=ratings
+      - MONGO_DB_USERNAME=admin
+      - MONGO_DB_PASSWORD=password123
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  mongodb-data:
