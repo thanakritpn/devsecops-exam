@@ -30,14 +30,13 @@ jobs:
 
       - name: Run tests
         run: npm test
-
-      - name: Publish Test Report
-        uses: dorny/test-reporter@v1
-        if: success() || failure()
+        
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v3
         with:
-          name: Jest Tests
+          name: test-results
           path: junit.xml
-          reporter: jest-junit
 
   build-and-push:
     runs-on: ubuntu-latest
