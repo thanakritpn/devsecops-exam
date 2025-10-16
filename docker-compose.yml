@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  ratings:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ratings:latest
+    container_name: ratings-service
+    ports:
+      - "8080:8080"
+    environment:
+      - SERVICE_VERSION=v1  # Run without database
+    restart: unless-stopped

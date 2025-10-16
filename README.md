@@ -1,102 +1,189 @@
 # DevSecOps Engineer Skill Assessment: The Ratings Service Deployment
 
-## Introduction
+## Project Overview
 
-Welcome! This assessment is designed to evaluate your research and development skills in a practical, hands-on scenario. We're more interested in your problem-solving approach, your ability to learn and apply new technologies, and your understanding of DevSecOps principles than in your memorization of specific commands.
+This project demonstrates the containerization and deployment of a microservice (ratings service) to Kubernetes following DevSecOps best practices.
 
-Feel free to use any resources at your disposal, including official documentation, articles, and AI assistants.
+## Completed Tasks
+
+### ✅ Core Requirements
+
+1. **Environment Setup**: Kind cluster configuration ready
+2. **Source Code**: Ratings service from bookinfo project
+3. **Containerization**: Dockerfile created and tested
+4. **Local Development Setup**: docker-compose.yml for local testing
+5. **Container Registry**: GitHub Actions workflow for GHCR
+6. **Deployment**: Helm values.yaml for opsta/onechart
+
+### ✅ Optional Tasks Completed
+
+- ✅ **CI/CD Automation**: GitHub Actions workflow with build and push
+- ✅ **Unit Testing**: Jest tests integrated in CI pipeline with test reports
+
+## Quick Start
+
+### Prerequisites
+
+- Docker Desktop
+- Node.js 14
+- kubectl
+- Helm 3
+- kind
+
+## Local Development
+
+### 1. Install dependencies
+
+```bash
+npm install
+```
+
+### 2. Run locally with Node.js
+
+```bash
+npm start
+# Access: http://localhost:8080
+```
+
+### 3. Run with Docker Compose
+
+```bash
+docker-compose up -d
+# Test: curl http://localhost:8080/health
+docker-compose down
+```
+
+### 4. Build Docker image manually
+
+```bash
+docker build -t ratings:latest .
+docker run -p 8080:8080 -e SERVICE_VERSION=v1 ratings:latest
+```
+
+## Kubernetes Deployment
+
+See detailed instructions in [KUBERNETES_SETUP.md](KUBERNETES_SETUP.md)
+
+### Quick Deploy
+
+```bash
+# Create kind cluster
+kind create cluster --name ratings-cluster
+
+# Create GHCR secret
+kubectl create secret docker-registry ghcr-secret \
+  --docker-server=ghcr.io \
+  --docker-username=YOUR_GITHUB_USERNAME \
+  --docker-password=YOUR_GITHUB_TOKEN
+
+# Add Helm repo
+helm repo add onechart https://chart.onechart.dev
+helm repo update
+
+# Deploy
+helm install ratings onechart/onechart -f values.yaml
+
+# Verify
+kubectl get pods
+kubectl port-forward svc/ratings 8080:8080
+```
+
+## CI/CD Pipeline
+
+The project includes a GitHub Actions workflow that:
+
+1. **On Push/PR**: Runs unit tests with Jest
+2. **On Push to main**: 
+   - Builds Docker image
+   - Pushes to GitHub Container Registry (GHCR)
+   - Tags with multiple formats (latest, sha, branch)
+
+### GitHub Actions Setup
+
+1. Fork/create your repository
+2. Enable GitHub Actions
+3. Push to main branch - workflow runs automatically
+4. Image will be available at `ghcr.io/YOUR_USERNAME/ratings`
+
+## Project Structure
+
+```
+devsecops-exam/
+├── .github/
+│   └── workflows/
+│       └── build-and-push.yml    # CI/CD pipeline
+├── databases/
+│   ├── ratings_data.json
+│   └── script.sh
+├── .dockerignore
+├── .gitignore
+├── docker-compose.yml            # Local development
+├── Dockerfile                    # Container image definition
+├── KUBERNETES_SETUP.md          # Detailed K8s setup guide
+├── package.json                  # Node.js dependencies
+├── ratings.js                    # Main application
+├── ratings.test.js              # Unit tests
+├── README.md                     # This file
+└── values.yaml                   # Helm chart values
+```
+
+## Testing
+
+```bash
+# Run unit tests
+npm test
+
+# Run tests with coverage
+npm test -- --coverage
+```
+
+## Environment Variables
+
+- `SERVICE_VERSION`: Set to `v1` for in-memory mode (no database required)
+- `SERVICE_VERSION`: Set to `v2` for database mode (MongoDB/MySQL required)
+
+## API Endpoints
+
+- `GET /health` - Health check endpoint
+- `GET /ratings/{productId}` - Get ratings for a product
+- `POST /ratings/{productId}` - Add rating for a product (v1 only)
+
+## Troubleshooting
+
+### Docker build fails
+- Check Node.js version in Dockerfile
+- Verify all files are present
+
+### Container won't start
+- Check logs: `docker logs <container-id>`
+- Verify SERVICE_VERSION is set correctly
+
+### Kubernetes pods not starting
+- Check image pull secret: `kubectl get secret ghcr-secret`
+- Verify image name in values.yaml
+- Check logs: `kubectl logs -l app=ratings`
+
+## Contributing
+
+This is an assessment project. Follow these best practices:
+- Write clear commit messages
+- Test locally before pushing
+- Document any changes
+
+## License
+
+Apache License 2.0 (from original Istio bookinfo project)
 
 ---
 
-## Objective
+## Assessment Notes
 
-Your goal is to take a simple microservice, containerize it, secure its artifacts, and deploy it onto a local Kubernetes cluster following modern cloud-native practices.
+**Completed by**: [Your Name]  
+**Date**: October 2025  
+**Optional Tasks**: CI/CD Automation, Unit Testing
 
----
-
-## Scenario
-
-You are a DevSecOps Engineer tasked with onboarding a new application, the `ratings` service, onto the company's standard Kubernetes platform. You must create a repeatable and automated process for building and deploying this service.
-
----
-
-## Core Requirements
-
-These tasks must be completed to be considered for the position.
-
-1.  **Environment Setup**:
-    * You can perform this assessment on your local machine, Google Cloud Shell, or any cloud-based virtual machine.
-    * Set up a local Kubernetes cluster using **`kind`**.
-
-2.  **Source Code**:
-    * Create your own **public** GitHub repository for this project.
-    * Clone the source code for the `ratings` service from [this repository](https://github.com/opsta/bookinfo/tree/main/src/ratings) into your project.
-
-3.  **Containerization**:
-    * Write your own `Dockerfile` to build a container image for the `ratings` service.
-    * The service must be configured to run in a mode that **does not require a database**.
-    * Build the image and ensure it runs correctly on your local Docker daemon before proceeding.
-
-4.  **Local Development Setup**:
-    * Create a **`docker-compose.yml`** file to run the `ratings` service locally. This is crucial for verifying your container setup and configuration before moving to Kubernetes.
-
-5.  **Container Registry**:
-    * Push your container image to the **GitHub Container Registry (GHCR)**.
-    * The image repository must be **private**. You will need to figure out how to authenticate your Kubernetes cluster to pull from a private GHCR registry.
-
-6.  **Deployment**:
-    * Deploy the `ratings` service to your `kind` cluster using the [opsta/onechart](https://github.com/opsta/onechart) Helm chart. You will need to add the Helm repository and read its documentation to understand how to use it.
-    * Create a `values.yaml` file within your repository to configure the deployment.
-    * The application must be exposed within the cluster using only a **`ClusterIP`** service type.
-
----
-
-## Optional (A Plus) Tasks
-
-Completing any of the following tasks will significantly strengthen your assessment.
-
--   **Database Integration (MongoDB)**: Modify the application to connect to a MongoDB database. Add MongoDB to your `docker-compose.yml` for local development, and create a manifest or find a Helm chart to deploy it to Kubernetes.
--   **GitOps Deployment**: Deploy the application to your cluster using **ArgoCD**. The ArgoCD instance can run within the same `kind` cluster.
--   **CI/CD Automation**: Implement a **GitHub Actions** workflow that automatically:
-    -   Builds the Docker image upon a push to the `main` branch.
-    -   Pushes the new image to GHCR.
--   **Multi-Environment CI/CD**: Create a CI/CD pipeline that supports deploying to `dev`, `uat`, and `prd` environments (e.g., using different branches, tags, or manual triggers).
--   **Unit Testing**: Enhance the GitHub Actions pipeline to:
-    -   Run the application's unit tests (`npm test`).
-    -   Display the test report summary within the GitHub Actions UI.
--   **Ingress & SSL**: Expose the `ratings` service to the outside world using an Ingress controller (e.g., NGINX Ingress Controller) and secure it with a valid SSL certificate (e.g., using `cert-manager` with a self-signed issuer or Let's Encrypt).
--   **Code Scanning (SAST)**: Integrate **SonarQube** into your CI pipeline to scan the source code. Identify and fix at least one "Security Hotspot" found in the code. Document your findings and the fix.
--   **Image Scanning**: Integrate an image vulnerability scanner (e.g., Trivy, Grype) into your CI pipeline. Analyze the results and modify your `Dockerfile` to minimize the number of vulnerabilities.
-
----
-
-## Deliverables
-
-Please provide a single link to your public GitHub repository. The repository should contain:
-
-1.  The complete source code for the `ratings` service.
-2.  Your `Dockerfile`.
-3.  Your `docker-compose.yml`.
-4.  The Helm `values.yaml` file used for deployment.
-5.  All GitHub Actions workflow files (`.github/workflows/`).
-6.  An updated `README.md` explaining how to set up and run your project, and detailing which optional tasks you completed.
-
----
-
-## ⭐ Important Note on AI Usage
-
-You are encouraged to use AI assistants (like ChatGPT, Gemini, Copilot, etc.) to help you. However, you **must show all your processes while on interview**.
-
----
-
-## Evaluation Criteria
-
-You will be evaluated on:
-
-* **Functionality**: Does the final deployment work as required?
-* **Correctness**: Have you followed the instructions correctly?
-* **Best Practices**: Your use of `.gitignore`, `.dockerignore`, commit message clarity, and the structure of your repository.
-* **Code Quality**: The clarity, efficiency, and security of your `Dockerfile` and configuration files.
-* **Problem-Solving**: The approach you took to research and implement solutions, especially for the optional tasks.
-
-Good luck!
+For questions during the interview, I can explain:
+- Design decisions for the Dockerfile
+- CI/CD pipeline choices
+- Kubernetes deployment strategy
+- Security considerations

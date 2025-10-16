@@ -1,0 +1,47 @@
+# Helm values for ratings service deployment using opsta/onechart
+
+image:
+  repository: ghcr.io/thanakritpn/devsecops-exam
+  tag: latest
+  pullPolicy: Always
+
+# Image pull secret for private GHCR
+imagePullSecrets:
+  - name: ghcr-secret
+
+replicas: 1
+
+service:
+  type: ClusterIP
+  port: 8080
+
+containerPort: 8080
+
+# Environment variables
+env:
+  - name: SERVICE_VERSION
+    value: "v1"  # Run without database
+
+# Resource limits
+resources:
+  limits:
+    cpu: 200m
+    memory: 128Mi
+  requests:
+    cpu: 100m
+    memory: 64Mi
+
+# Health checks
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8080
+  initialDelaySeconds: 10
+  periodSeconds: 10
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 8080
+  initialDelaySeconds: 5
+  periodSeconds: 5

@@ -1,0 +1,10 @@
+node_modules/
+npm-debug.log
+.env
+.DS_Store
+temp-bookinfo/
+*.log
+coverage/
+.vscode/
+junit.xml
+kind-config.yaml
