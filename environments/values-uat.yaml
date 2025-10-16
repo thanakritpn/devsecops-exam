@@ -1,11 +1,11 @@
-# Helm values for ratings service deployment using opsta/onechart
+# UAT Environment Values
 
 image:
   repository: ghcr.io/thanakritpn/devsecops-exam
   tag: latest
   pullPolicy: Always
 
-replicas: 1
+replicas: 2
 
 service:
   type: ClusterIP
@@ -13,12 +13,12 @@ service:
 
 containerPort: 8080
 
-# Environment variables
 env:
   - name: SERVICE_VERSION
-    value: "v1"  # Run without database
+    value: "v1"
+  - name: ENVIRONMENT
+    value: "uat"
 
-# Resource limits
 resources:
   limits:
     cpu: 200m
@@ -27,7 +27,6 @@ resources:
     cpu: 100m
     memory: 64Mi
 
-# Health checks
 livenessProbe:
   httpGet:
     path: /health

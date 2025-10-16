@@ -1,0 +1,56 @@
+# Production Environment Values
+
+image:
+  repository: ghcr.io/thanakritpn/devsecops-exam
+  tag: latest
+  pullPolicy: IfNotPresent
+
+replicas: 3
+
+service:
+  type: ClusterIP
+  port: 8080
+
+containerPort: 8080
+
+env:
+  - name: SERVICE_VERSION
+    value: "v1"
+  - name: ENVIRONMENT
+    value: "production"
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 256Mi
+  requests:
+    cpu: 200m
+    memory: 128Mi
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8080
+  initialDelaySeconds: 10
+  periodSeconds: 10
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 8080
+  initialDelaySeconds: 5
+  periodSeconds: 5
+
+# Production specific settings
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - ratings
+          topologyKey: kubernetes.io/hostname

@@ -1,0 +1,142 @@
+name: Multi-Environment Deployment
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        type: choice
+        options:
+          - dev
+          - uat
+          - prd
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  determine-environment:
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.set-env.outputs.environment }}
+      tag: ${{ steps.set-env.outputs.tag }}
+    
+    steps:
+      - name: Determine environment and tag
+        id: set-env
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "environment=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
+            echo "tag=latest" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            echo "environment=prd" >> $GITHUB_OUTPUT
+            echo "tag=latest" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref }}" == "refs/heads/develop" ]; then
+            echo "environment=dev" >> $GITHUB_OUTPUT
+            echo "tag=develop" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            echo "environment=uat" >> $GITHUB_OUTPUT
+            echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          else
+            echo "environment=dev" >> $GITHUB_OUTPUT
+            echo "tag=latest" >> $GITHUB_OUTPUT
+          fi
+
+  build-for-environment:
+    runs-on: ubuntu-latest
+    needs: determine-environment
+    
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=${{ needs.determine-environment.outputs.tag }}
+            type=raw,value=${{ needs.determine-environment.outputs.environment }}-${{ github.sha }}
+            type=sha,prefix=${{ needs.determine-environment.outputs.environment }}-
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  deploy-dev:
+    runs-on: ubuntu-latest
+    needs: [determine-environment, build-for-environment]
+    if: needs.determine-environment.outputs.environment == 'dev'
+    environment:
+      name: development
+      url: http://dev.ratings.local
+    
+    steps:
+      - name: Deploy to Development
+        run: |
+          echo "🚀 Deploying to DEVELOPMENT environment"
+          echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.determine-environment.outputs.tag }}"
+          echo "Environment: development"
+          # Add your deployment commands here
+          # Example: kubectl apply -f k8s/dev/ or helm upgrade
+
+  deploy-uat:
+    runs-on: ubuntu-latest
+    needs: [determine-environment, build-for-environment]
+    if: needs.determine-environment.outputs.environment == 'uat'
+    environment:
+      name: uat
+      url: http://uat.ratings.local
+    
+    steps:
+      - name: Deploy to UAT
+        run: |
+          echo "🚀 Deploying to UAT environment"
+          echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.determine-environment.outputs.tag }}"
+          echo "Environment: uat"
+          # Add your deployment commands here
+
+  deploy-production:
+    runs-on: ubuntu-latest
+    needs: [determine-environment, build-for-environment]
+    if: needs.determine-environment.outputs.environment == 'prd'
+    environment:
+      name: production
+      url: http://ratings.production.local
+    
+    steps:
+      - name: Deploy to Production
+        run: |
+          echo "🚀 Deploying to PRODUCTION environment"
+          echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.determine-environment.outputs.tag }}"
+          echo "Environment: production"
+          # Add your deployment commands here
+          
+      - name: Notify deployment
+        run: |
+          echo "✅ Production deployment completed successfully!"
+          echo "Version: ${{ needs.determine-environment.outputs.tag }}"

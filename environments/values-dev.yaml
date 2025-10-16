@@ -1,8 +1,8 @@
-# Helm values for ratings service deployment using opsta/onechart
+# Development Environment Values
 
 image:
   repository: ghcr.io/thanakritpn/devsecops-exam
-  tag: latest
+  tag: develop
   pullPolicy: Always
 
 replicas: 1
@@ -13,21 +13,20 @@ service:
 
 containerPort: 8080
 
-# Environment variables
 env:
   - name: SERVICE_VERSION
-    value: "v1"  # Run without database
+    value: "v1"
+  - name: ENVIRONMENT
+    value: "development"
 
-# Resource limits
 resources:
   limits:
-    cpu: 200m
-    memory: 128Mi
-  requests:
     cpu: 100m
     memory: 64Mi
+  requests:
+    cpu: 50m
+    memory: 32Mi
 
-# Health checks
 livenessProbe:
   httpGet:
     path: /health
